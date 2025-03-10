@@ -1,3 +1,4 @@
+// Load MediaPipe Pose library (ensure this script is loaded before your custom script)
 const video = document.createElement("video");
 
 // Initialize MediaPipe Pose
