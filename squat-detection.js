@@ -1,56 +1,48 @@
-// Ensure the MediaPipe Pose library is loaded
-if (typeof mp === 'undefined') {
-  console.error('MediaPipe Pose library not loaded');
-} else {
-  const video = document.createElement("video");
+let squatCount = 0;
+let isSquatting = false;
+let squatStartTime = null;
+let feedbackGiven = false;
 
-  // Initialize MediaPipe Pose
-  const pose = new mp.pose.Pose({
-    solutionOptions: { selfieMode: true, modelComplexity: 1 },
-  });
+function getKneeAngle() {
+  // Replace with actual logic to get knee angle based on camera feed or device sensors.
+  return Math.random() * 180; // Simulating knee angle between 0 and 180
+}
 
-  // Function to analyze pose data and detect squat
-  function detectSquat(landmarks) {
-    const leftKnee = landmarks[mp.pose.PoseLandmark.LEFT_KNEE];
-    const rightKnee = landmarks[mp.pose.PoseLandmark.RIGHT_KNEE];
-    const leftHip = landmarks[mp.pose.PoseLandmark.LEFT_HIP];
-    const rightHip = landmarks[mp.pose.PoseLandmark.RIGHT_HIP];
+function speakText(text) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  window.speechSynthesis.speak(utterance);
+}
 
-    const angleLeftLeg = calculateAngle(leftHip, leftKnee);
-    const angleRightLeg = calculateAngle(rightHip, rightKnee);
+function checkSquat() {
+  const kneeAngle = getKneeAngle();
+  const feedbackElement = document.getElementById('feedback');
 
-    const squatThreshold = 90; // Squat threshold angle (degrees)
-    if (angleLeftLeg < squatThreshold && angleRightLeg < squatThreshold) {
-      console.log('Squat detected!');
-    }
-  }
-
-  function calculateAngle(point1, point2) {
-    const deltaY = point2.y - point1.y;
-    const deltaX = point2.x - point1.x;
-    return Math.atan2(deltaY, deltaX) * (180 / Math.PI);
-  }
-
-  // Function to start pose detection
-  async function startPoseDetection() {
-    const videoElement = document.getElementById("video");
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-    });
-
-    videoElement.srcObject = stream;
-    videoElement.play();
-
-    const webcamElement = document.getElementById("webcam");
-    pose.onResults(onResults);
-
-    function onResults(results) {
-      if (results.poseLandmarks) {
-        detectSquat(results.poseLandmarks);
+  if (kneeAngle < 150) {
+    if (!isSquatting) {
+      isSquatting = true;
+      squatStartTime = Date.now();
+      feedbackGiven = false;
+      feedbackElement.textContent = "Squat detected! Hold for 1 sec";
+    } else if (Date.now() - squatStartTime >= 1000) {
+      if (kneeAngle >= 80 && kneeAngle <= 100) {
+        feedbackElement.textContent = `Good squat! Count: ${squatCount + 1}`;
+        speakText("Good squat!");
+        squatCount++;
+      } else if (kneeAngle > 100 && !feedbackGiven) {
+        feedbackElement.textContent = "Go lower!";
+        speakText("Go lower.");
+        feedbackGiven = true;
+      } else if (kneeAngle < 80 && !feedbackGiven) {
+        feedbackElement.textContent = "Too low, raise up a bit!";
+        speakText("Too low, raise up a bit.");
+        feedbackGiven = true;
       }
     }
+  } else if (isSquatting && kneeAngle > 150) {
+    isSquatting = false;
+    squatStartTime = null;
+    feedbackElement.textContent = "Stand up to complete rep!";
   }
-
-  startPoseDetection();
 }
+
+setInterval(checkSquat, 100);
